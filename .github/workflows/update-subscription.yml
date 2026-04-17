@@ -55,8 +55,18 @@ jobs:
           echo "Downloading configs from AzadNetCH/Clash..."
           curl -s "https://raw.githubusercontent.com/AzadNetCH/Clash/main/V2Ray.txt" > temp/azadnet_v2ray.txt
 
-          # Объединяем все конфиги и удаляем дубликаты
-          cat temp/*.txt | grep -v '^$' | grep -v '^#' | sort -u > temp/combined.txt
+          # Объединяем все конфиги с приоритизацией лучших источников
+          # Приоритет 1: Проверенные российские конфиги (igareck)
+          cat temp/black_vless_mobile.txt temp/white_vless_mobile1.txt temp/white_vless_mobile2.txt 2>/dev/null | grep -v '^$' | grep -v '^#' > temp/priority1.txt
+
+          # Приоритет 2: Агрегаторы с проверкой
+          cat temp/v2ray_aggregator.txt temp/telegram_collector_mix.txt temp/barry_all.txt 2>/dev/null | grep -v '^$' | grep -v '^#' > temp/priority2.txt
+
+          # Приоритет 3: Остальные источники
+          cat temp/black_vless_full.txt temp/black_ss_all.txt temp/white_cidr_all.txt temp/white_sni_all.txt temp/telegram_collector_ss.txt temp/nomorewalls.txt temp/mfuu_v2ray.txt temp/azadnet_v2ray.txt 2>/dev/null | grep -v '^$' | grep -v '^#' > temp/priority3.txt
+
+          # Объединяем по приоритету и удаляем дубликаты
+          cat temp/priority1.txt temp/priority2.txt temp/priority3.txt | awk '!seen[$0]++' > temp/combined.txt
 
           # Создаем subscription.txt с заголовком
           cat > subscription.txt << 'EOFSUB'
@@ -64,7 +74,7 @@ jobs:
           # profile-update-interval: 2
           EOFSUB
 
-          # Берем первые 200 конфигов
+          # Берем первые 200 лучших конфигов
           head -n 200 temp/combined.txt >> subscription.txt
 
           # Создаем base64 версию
