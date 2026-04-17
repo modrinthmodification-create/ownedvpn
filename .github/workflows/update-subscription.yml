@@ -64,8 +64,8 @@ jobs:
           # profile-update-interval: 2
           EOFSUB
 
-          # Берем первые 500 конфигов
-          head -n 500 temp/combined.txt >> subscription.txt
+          # Берем первые 200 конфигов
+          head -n 200 temp/combined.txt >> subscription.txt
 
           # Создаем base64 версию
           base64 -w 0 subscription.txt > subscription_base64.txt
