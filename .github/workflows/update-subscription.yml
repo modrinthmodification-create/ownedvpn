@@ -36,37 +36,17 @@ jobs:
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt" > temp/white_cidr_all.txt
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-SNI-RU-all.txt" > temp/white_sni_all.txt
 
-          # Функция для обработки конфигов и замены названия
-          process_configs() {
-            local file=$1
-            if [ -f "$file" ] && [ -s "$file" ]; then
-              grep -v '^$' "$file" | grep -v '^#' | while IFS= read -r line; do
-                # Заменяем название в конфиге
-                if [[ $line == vless://* ]] || [[ $line == vmess://* ]] || [[ $line == trojan://* ]] || [[ $line == ss://* ]] || [[ $line == hysteria2://* ]]; then
-                  if [[ $line == *"#"* ]]; then
-                    # Заменяем существующее название
-                    echo "${line%%#*}#✅Обход белых списков @proxyalready✅"
-                  else
-                    # Добавляем название
-                    echo "${line}#✅Обход белых списков @proxyalready✅"
-                  fi
-                else
-                  echo "$line"
-                fi
-              done
-            fi
-          }
+          # Объединяем все конфиги
+          cat temp/*.txt | grep -v '^$' | grep -v '^#' | sort -u > temp/combined.txt
 
-          # Объединяем все конфиги с новым названием
-          {
-            process_configs "temp/black_vless_mobile.txt"
-            process_configs "temp/black_vless_full.txt"
-            process_configs "temp/black_ss_all.txt"
-            process_configs "temp/white_vless_mobile1.txt"
-            process_configs "temp/white_vless_mobile2.txt"
-            process_configs "temp/white_cidr_all.txt"
-            process_configs "temp/white_sni_all.txt"
-          } | sort -u > subscription.txt
+          # Создаем subscription.txt с заголовком
+          cat > subscription.txt << 'EOFSUB'
+          # profile-title: ✅Обход белых списков @proxyalready✅
+          # profile-update-interval: 2
+          EOFSUB
+
+          # Добавляем конфиги
+          cat temp/combined.txt >> subscription.txt
 
           # Создаем base64 версию
           base64 -w 0 subscription.txt > subscription_base64.txt
