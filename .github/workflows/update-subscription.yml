@@ -27,7 +27,7 @@ jobs:
           mkdir -p temp
 
           # Скачиваем все доступные конфигурации
-          echo "Downloading configs..."
+          echo "Downloading configs from igareck/vpn-configs-for-russia..."
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/black_vless_mobile.txt
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" > temp/black_vless_full.txt
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_SS%2BAll_RUS.txt" > temp/black_ss_all.txt
@@ -35,6 +35,25 @@ jobs:
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile-2.txt" > temp/white_vless_mobile2.txt
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt" > temp/white_cidr_all.txt
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-SNI-RU-all.txt" > temp/white_sni_all.txt
+
+          echo "Downloading configs from mahdibland/V2RayAggregator..."
+          curl -s "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt" > temp/v2ray_aggregator.txt
+
+          echo "Downloading configs from yebekhe/TelegramV2rayCollector..."
+          curl -s "https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/mix" > temp/telegram_collector_mix.txt
+          curl -s "https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/shadowsocks" > temp/telegram_collector_ss.txt
+
+          echo "Downloading configs from barry-far/V2ray-Configs..."
+          curl -s "https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/All_Configs_Sub.txt" > temp/barry_all.txt
+
+          echo "Downloading configs from peasoft/NoMoreWalls..."
+          curl -s "https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.txt" > temp/nomorewalls.txt
+
+          echo "Downloading configs from mfuu/v2ray..."
+          curl -s "https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray" > temp/mfuu_v2ray.txt
+
+          echo "Downloading configs from AzadNetCH/Clash..."
+          curl -s "https://raw.githubusercontent.com/AzadNetCH/Clash/main/V2Ray.txt" > temp/azadnet_v2ray.txt
 
           # Объединяем все конфиги
           cat temp/*.txt | grep -v '^$' | grep -v '^#' | sort -u > temp/combined.txt
