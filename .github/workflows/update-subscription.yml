@@ -26,84 +26,206 @@ jobs:
           # Создаем временную директорию
           mkdir -p temp
 
-          # Скачиваем конфигурации из источников
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/vless_mobile.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_SS%2BAll_RUS.txt" > temp/ss_all.txt
+          # Скачиваем все доступные конфигурации
+          echo "Downloading BLACK lists..."
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/black_vless_mobile.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" > temp/black_vless_full.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_SS%2BAll_RUS.txt" > temp/black_ss_all.txt
 
-          # Объединяем все файлы
-          cat temp/vless_mobile.txt temp/ss_all.txt > temp/combined.txt
+          echo "Downloading WHITE lists..."
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" > temp/white_vless_mobile1.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile-2.txt" > temp/white_vless_mobile2.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt" > temp/white_cidr_all.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-SNI-RU-all.txt" > temp/white_sni_all.txt
 
-          # Удаляем пустые строки и дубликаты
-          grep -v '^$' temp/combined.txt | sort -u > subscription.txt
+          # Функция для обработки конфигов и добавления названия
+          process_configs() {
+            local file=$1
+            local name=$2
+            if [ -f "$file" ] && [ -s "$file" ]; then
+              grep -v '^$' "$file" | while IFS= read -r line; do
+                # Добавляем название в конфиг (для протоколов поддерживающих remarks/ps)
+                if [[ $line == vless://* ]] || [[ $line == vmess://* ]] || [[ $line == trojan://* ]]; then
+                  # Проверяем есть ли уже параметр с названием
+                  if [[ $line == *"#"* ]]; then
+                    # Заменяем существующее название
+                    echo "${line%%#*}#${name}"
+                  else
+                    # Добавляем название
+                    echo "${line}#${name}"
+                  fi
+                else
+                  echo "$line"
+                fi
+              done
+            fi
+          }
 
-          # Создаем base64 версию
-          base64 -w 0 subscription.txt > subscription_base64.txt
+          # Создаем отдельные подписки с понятными названиями
 
-          # Подсчитываем количество конфигураций
-          CONFIG_COUNT=$(wc -l < subscription.txt)
-          echo "Total configs: $CONFIG_COUNT"
+          # 1. Обход белых списков (WHITE lists)
+          echo "Creating: ✅Обход белых списков"
+          {
+            process_configs "temp/white_vless_mobile1.txt" "✅Обход белых списков"
+            process_configs "temp/white_vless_mobile2.txt" "✅Обход белых списков"
+            process_configs "temp/white_cidr_all.txt" "✅Обход белых списков"
+            process_configs "temp/white_sni_all.txt" "✅Обход белых списков"
+          } | sort -u > "obhod-belyh-spiskov.txt"
 
-          # Обновляем README с информацией
-          cat > README.md << EOF
-          # VPN Subscription для Hiddify
+          # 2. Стандартный интернет (BLACK lists)
+          echo "Creating: 🌐Стандартный интернет"
+          {
+            process_configs "temp/black_vless_mobile.txt" "🌐Стандартный интернет"
+            process_configs "temp/black_ss_all.txt" "🌐Стандартный интернет"
+          } | sort -u > "standartnyj-internet.txt"
 
-          Автоматически обновляемая подписка VPN конфигураций из [vpn-configs-for-russia](https://github.com/igareck/vpn-configs-for-russia).
+          # 3. Полная подписка (все вместе)
+          echo "Creating: 🚀Все конфиги"
+          {
+            process_configs "temp/black_vless_full.txt" "🚀Все конфиги"
+            process_configs "temp/black_ss_all.txt" "🚀Все конфиги"
+          } | sort -u > "vse-konfigi.txt"
+
+          # 4. Универсальная (BLACK + WHITE)
+          echo "Creating: ⚡Универсальная"
+          cat obhod-belyh-spiskov.txt standartnyj-internet.txt | sort -u > "universalnaya.txt"
+
+          # Создаем base64 версии
+          base64 -w 0 obhod-belyh-spiskov.txt > obhod-belyh-spiskov-base64.txt
+          base64 -w 0 standartnyj-internet.txt > standartnyj-internet-base64.txt
+          base64 -w 0 vse-konfigi.txt > vse-konfigi-base64.txt
+          base64 -w 0 universalnaya.txt > universalnaya-base64.txt
+
+          # Подсчитываем статистику
+          COUNT_WHITE=$(wc -l < obhod-belyh-spiskov.txt)
+          COUNT_BLACK=$(wc -l < standartnyj-internet.txt)
+          COUNT_FULL=$(wc -l < vse-konfigi.txt)
+          COUNT_UNIVERSAL=$(wc -l < universalnaya.txt)
+
+          # Обновляем README
+          cat > README.md << 'EOFREADME'
+          # 🚀 VPN Подписки для Hiddify
+
+          Автоматически обновляемые VPN конфигурации из [vpn-configs-for-russia](https://github.com/igareck/vpn-configs-for-russia).
+
+          > 📡 **Доступ без VPN!** GitHub raw файлы доступны из России без прокси.
 
           ## 📊 Статистика
 
-          - **Всего конфигураций:** $CONFIG_COUNT
-          - **Последнее обновление:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          - **Обновление:** каждые 2 часа автоматически
+          | Подписка | Конфигов | Обновлено |
+          |----------|----------|-----------|
+          | ✅ Обход белых списков | COUNT_WHITE | UPDATE_TIME |
+          | 🌐 Стандартный интернет | COUNT_BLACK | UPDATE_TIME |
+          | 🚀 Все конфиги | COUNT_FULL | UPDATE_TIME |
+          | ⚡ Универсальная | COUNT_UNIVERSAL | UPDATE_TIME |
+
+          **Автообновление:** каждые 2 часа
+
+          ---
 
           ## 🔗 Ссылки для подписки
 
-          ### Для Hiddify (рекомендуется)
-          \`\`\`
-          https://raw.githubusercontent.com/${{ github.repository }}/main/subscription.txt
-          \`\`\`
+          ### ✅ Обход белых списков
+          **Для жестких ограничений (VK, Yandex, CDNVideo)**
+          ```
+          https://raw.githubusercontent.com/REPO_PATH/main/obhod-belyh-spiskov.txt
+          ```
 
-          ### Base64 формат
-          \`\`\`
-          https://raw.githubusercontent.com/${{ github.repository }}/main/subscription_base64.txt
-          \`\`\`
+          ### 🌐 Стандартный интернет
+          **Оптимизировано для телефонов (150 лучших + SS/Hysteria2/VMess/Trojan)**
+          ```
+          https://raw.githubusercontent.com/REPO_PATH/main/standartnyj-internet.txt
+          ```
 
-          ## 📱 Как использовать
+          ### 🚀 Все конфиги
+          **Полная подписка (1000-2000+ конфигов)**
+          ```
+          https://raw.githubusercontent.com/REPO_PATH/main/vse-konfigi.txt
+          ```
 
-          ### В Hiddify App (Android/iOS/Windows/macOS)
+          ### ⚡ Универсальная (Рекомендуется)
+          **BLACK + WHITE списки вместе**
+          ```
+          https://raw.githubusercontent.com/REPO_PATH/main/universalnaya.txt
+          ```
 
-          1. Открой Hiddify App
-          2. Нажми на "+" или "Добавить профиль"
-          3. Выбери "Добавить из URL" или "Subscription URL"
-          4. Вставь ссылку выше
-          5. Нажми "Добавить" или "Subscribe"
+          ---
 
-          ### В Hiddify Next
+          ## 📱 Как добавить в Hiddify
 
-          1. Открой приложение
-          2. Перейди в раздел "Profiles" или "Профили"
-          3. Нажми "Add Profile" → "From URL"
-          4. Вставь ссылку
-          5. Сохрани
+          ### Android / iOS
+          1. Открой **Hiddify App**
+          2. Нажми **"+"** → **"Add from URL"**
+          3. Вставь одну из ссылок выше
+          4. Готово! ✅
 
-          ## 🔄 Источники
+          ### Windows / macOS
+          1. Открой **Hiddify**
+          2. **Profiles** → **Add Profile** → **From URL**
+          3. Вставь ссылку
+          4. Сохрани
 
-          Конфигурации берутся из:
-          - \`BLACK_VLESS_RUS_mobile.txt\` - 150 лучших VLESS конфигов
-          - \`BLACK_SS+All_RUS.txt\` - Shadowsocks, Hysteria2, VMess, Trojan
+          ### Обновление конфигов
+          Hiddify автоматически обновляет подписки. Для ручного обновления:
+          - Нажми на профиль → **Update** или **Refresh**
 
-          Все конфигурации проверяются на работоспособность каждые 2 часа на сервере в России.
+          ---
+
+          ## 🔄 Что включено
+
+          ### ✅ Обход белых списков
+          - `Vless-Reality-White-Lists-Rus-Mobile.txt` (150 CIDR)
+          - `Vless-Reality-White-Lists-Rus-Mobile-2.txt` (150 CIDR)
+          - `WHITE-CIDR-RU-all.txt` (полная CIDR подписка)
+          - `WHITE-SNI-RU-all.txt` (SNI подписка)
+
+          ### 🌐 Стандартный интернет
+          - `BLACK_VLESS_RUS_mobile.txt` (150 лучших VLESS)
+          - `BLACK_SS+All_RUS.txt` (SS, Hysteria2, VMess, Trojan)
+
+          ### 🚀 Все конфиги
+          - `BLACK_VLESS_RUS.txt` (1000-2000+ VLESS конфигов)
+          - `BLACK_SS+All_RUS.txt` (все протоколы)
+
+          ---
 
           ## ⚙️ Технические детали
 
-          - Автоматическое обновление через GitHub Actions
-          - Удаление дубликатов
-          - Поддержка форматов: plain text и base64
-          - Без необходимости разворачивать собственный сервер
+          - ✅ Автоматическое обновление через GitHub Actions
+          - ✅ Удаление дубликатов
+          - ✅ Проверка работоспособности каждые 2 часа
+          - ✅ Доступ без VPN (GitHub raw)
+          - ✅ Поддержка форматов: plain text и base64
 
-          ## 📝 Лицензия
+          ---
 
-          Конфигурации предоставляются "как есть" из публичного репозитория [igareck/vpn-configs-for-russia](https://github.com/igareck/vpn-configs-for-russia).
-          EOF
+          ## 💡 Какую подписку выбрать?
+
+          | Ситуация | Рекомендация |
+          |----------|--------------|
+          | Жесткие блокировки (VK, Yandex не работают) | ✅ **Обход белых списков** |
+          | Обычное использование на телефоне | 🌐 **Стандартный интернет** |
+          | Нужно максимум конфигов | 🚀 **Все конфиги** |
+          | Не знаю что выбрать | ⚡ **Универсальная** |
+
+          ---
+
+          ## 📝 Источник
+
+          Конфигурации из репозитория [igareck/vpn-configs-for-russia](https://github.com/igareck/vpn-configs-for-russia)
+
+          Все конфиги проверяются на работоспособность на сервере в России каждые 2 часа.
+          EOFREADME
+
+          # Заменяем плейсхолдеры
+          sed -i "s|COUNT_WHITE|$COUNT_WHITE|g" README.md
+          sed -i "s|COUNT_BLACK|$COUNT_BLACK|g" README.md
+          sed -i "s|COUNT_FULL|$COUNT_FULL|g" README.md
+          sed -i "s|COUNT_UNIVERSAL|$COUNT_UNIVERSAL|g" README.md
+          sed -i "s|UPDATE_TIME|$(date -u +"%Y-%m-%d %H:%M UTC")|g" README.md
+          sed -i "s|REPO_PATH|${{ github.repository }}|g" README.md
+
+          echo "✅ Created 4 subscriptions with $COUNT_UNIVERSAL total unique configs"
 
           # Очищаем временные файлы
           rm -rf temp
@@ -112,5 +234,5 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add subscription.txt subscription_base64.txt README.md
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update subscription: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" && git push)
+          git add *.txt README.md
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🔄 Update: $(date -u +"%Y-%m-%d %H:%M UTC")" && git push)
