@@ -55,17 +55,17 @@ jobs:
           echo "Downloading configs from AzadNetCH/Clash..."
           curl -s "https://raw.githubusercontent.com/AzadNetCH/Clash/main/V2Ray.txt" > temp/azadnet_v2ray.txt
 
-          # Объединяем все конфиги
+          # Объединяем все конфиги и удаляем дубликаты
           cat temp/*.txt | grep -v '^$' | grep -v '^#' | sort -u > temp/combined.txt
 
           # Создаем subscription.txt с заголовком
           cat > subscription.txt << 'EOFSUB'
-          # profile-title: ✅Обход белых списков @proxyalready✅
+          # profile-title: base64:4pyFT2J4b2Qg0LHQtdC70YvRhSDRgdC/0LjRgdC60L7QsiBAcHJveHlhbHJlYWR54pyF
           # profile-update-interval: 2
           EOFSUB
 
-          # Добавляем конфиги
-          cat temp/combined.txt >> subscription.txt
+          # Берем первые 500 конфигов
+          head -n 500 temp/combined.txt >> subscription.txt
 
           # Создаем base64 версию
           base64 -w 0 subscription.txt > subscription_base64.txt
