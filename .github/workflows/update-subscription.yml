@@ -1,0 +1,116 @@
+name: Update VPN Subscription
+
+on:
+  schedule:
+    # Запускаем каждые 2 часа
+    - cron: '0 */2 * * *'
+  workflow_dispatch: # Позволяет запустить вручную
+  push:
+    branches:
+      - main
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch and merge VPN configs
+        run: |
+          echo "Fetching VPN configurations..."
+
+          # Создаем временную директорию
+          mkdir -p temp
+
+          # Скачиваем конфигурации из источников
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/vless_mobile.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_SS%2BAll_RUS.txt" > temp/ss_all.txt
+
+          # Объединяем все файлы
+          cat temp/vless_mobile.txt temp/ss_all.txt > temp/combined.txt
+
+          # Удаляем пустые строки и дубликаты
+          grep -v '^$' temp/combined.txt | sort -u > subscription.txt
+
+          # Создаем base64 версию
+          base64 -w 0 subscription.txt > subscription_base64.txt
+
+          # Подсчитываем количество конфигураций
+          CONFIG_COUNT=$(wc -l < subscription.txt)
+          echo "Total configs: $CONFIG_COUNT"
+
+          # Обновляем README с информацией
+          cat > README.md << EOF
+          # VPN Subscription для Hiddify
+
+          Автоматически обновляемая подписка VPN конфигураций из [vpn-configs-for-russia](https://github.com/igareck/vpn-configs-for-russia).
+
+          ## 📊 Статистика
+
+          - **Всего конфигураций:** $CONFIG_COUNT
+          - **Последнее обновление:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Обновление:** каждые 2 часа автоматически
+
+          ## 🔗 Ссылки для подписки
+
+          ### Для Hiddify (рекомендуется)
+          \`\`\`
+          https://raw.githubusercontent.com/${{ github.repository }}/main/subscription.txt
+          \`\`\`
+
+          ### Base64 формат
+          \`\`\`
+          https://raw.githubusercontent.com/${{ github.repository }}/main/subscription_base64.txt
+          \`\`\`
+
+          ## 📱 Как использовать
+
+          ### В Hiddify App (Android/iOS/Windows/macOS)
+
+          1. Открой Hiddify App
+          2. Нажми на "+" или "Добавить профиль"
+          3. Выбери "Добавить из URL" или "Subscription URL"
+          4. Вставь ссылку выше
+          5. Нажми "Добавить" или "Subscribe"
+
+          ### В Hiddify Next
+
+          1. Открой приложение
+          2. Перейди в раздел "Profiles" или "Профили"
+          3. Нажми "Add Profile" → "From URL"
+          4. Вставь ссылку
+          5. Сохрани
+
+          ## 🔄 Источники
+
+          Конфигурации берутся из:
+          - \`BLACK_VLESS_RUS_mobile.txt\` - 150 лучших VLESS конфигов
+          - \`BLACK_SS+All_RUS.txt\` - Shadowsocks, Hysteria2, VMess, Trojan
+
+          Все конфигурации проверяются на работоспособность каждые 2 часа на сервере в России.
+
+          ## ⚙️ Технические детали
+
+          - Автоматическое обновление через GitHub Actions
+          - Удаление дубликатов
+          - Поддержка форматов: plain text и base64
+          - Без необходимости разворачивать собственный сервер
+
+          ## 📝 Лицензия
+
+          Конфигурации предоставляются "как есть" из публичного репозитория [igareck/vpn-configs-for-russia](https://github.com/igareck/vpn-configs-for-russia).
+          EOF
+
+          # Очищаем временные файлы
+          rm -rf temp
+
+      - name: Commit and push if changed
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add subscription.txt subscription_base64.txt README.md
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update subscription: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" && git push)
