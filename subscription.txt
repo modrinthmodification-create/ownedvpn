@@ -1,7 +1,7 @@
 # Date/Time: 2026-04-17 / 15:51 (Moscow)
 # For more info and VPN-configs - visit: www.github.com/igareck/vpn-configs-for-russia
-# profile-title: 🏴 ЧЕРНЫЕ СПИСКИ 🏴 BLACK LISTS | Mobile-150
-# profile-title: 🏴 ЧЕРНЫЕ СПИСКИ 🏴 BLACK LISTS | Полная • Full | SS, Hy2, Vmess, Trojan
+# profile-title: ✅ Обход белых списков от Санечки ✅ BLACK LISTS | Mobile-150
+# profile-title: ✅ Обход белых списков от Санечки ✅ BLACK LISTS | Полная • Full | SS, Hy2, Vmess, Trojan
 # profile-update-interval: 5
 # Количество: 150
 # Количество: 97
