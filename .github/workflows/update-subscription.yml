@@ -2,8 +2,8 @@ name: Update VPN Subscription
 
 on:
   schedule:
-    # Запускаем каждые 2 часа
-    - cron: '0 */2 * * *'
+    # Запускаем каждые 5 минут
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Позволяет запустить вручную
   push:
     branches:
