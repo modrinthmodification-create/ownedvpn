@@ -2,9 +2,10 @@ name: Update VPN Subscription
 
 on:
   schedule:
-    # Запускаем каждые 5 минут
     - cron: '*/5 * * * *'
-  workflow_dispatch: # Позволяет запустить вручную
+  workflow_dispatch:
+  repository_dispatch:
+    types: [update-vpn]
   push:
     branches:
       - main
