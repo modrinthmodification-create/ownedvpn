@@ -1,0 +1,13 @@
+[Unit]
+Description=VPN Server Watchdog
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/root/server_watchdog.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
