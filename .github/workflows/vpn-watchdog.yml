@@ -2,9 +2,11 @@ name: VPN Watchdog
 
 on:
   schedule:
-    # Каждую минуту (максимальная частота)
-    - cron: '* * * * *'
+    # Каждые 5 минут (GitHub Actions cron ненадежен для частых запусков)
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Ручной запуск
+  repository_dispatch: # Внешний триггер
+    types: [check-vpn]
 
 jobs:
   check-vpn:
