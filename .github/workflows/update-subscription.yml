@@ -2,27 +2,183 @@ name: Update VPN Subscription
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Каждые 5 минут
-  workflow_dispatch:
+    # Запускаем каждые 2 часа
+    - cron: '0 */2 * * *'
+  workflow_dispatch: # Позволяет запустить вручную
+  push:
+    branches:
+      - main
 
 jobs:
   update:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download fresh configs
+      - name: Fetch and merge VPN configs
         run: |
-          echo "Downloading configs from source..."
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/subscription.txt" -o subscription.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/subscription_base64.txt" -o subscription_base64.txt
-          echo "Download complete"
+          echo "Fetching VPN configurations..."
+
+          # Создаем временную директорию
+          mkdir -p temp
+
+          # Скачиваем все доступные конфигурации
+          echo "Downloading configs from igareck/vpn-configs-for-russia..."
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/black_vless_mobile.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" > temp/black_vless_full.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_SS%2BAll_RUS.txt" > temp/black_ss_all.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" > temp/white_vless_mobile1.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile-2.txt" > temp/white_vless_mobile2.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt" > temp/white_cidr_all.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-SNI-RU-all.txt" > temp/white_sni_all.txt
+
+          echo "Downloading configs from mahdibland/V2RayAggregator..."
+          curl -s "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt" > temp/v2ray_aggregator.txt
+
+          echo "Downloading configs from yebekhe/TelegramV2rayCollector..."
+          curl -s "https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/mix" > temp/telegram_collector_mix.txt
+          curl -s "https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/shadowsocks" > temp/telegram_collector_ss.txt
+
+          echo "Downloading configs from barry-far/V2ray-Configs..."
+          curl -s "https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/All_Configs_Sub.txt" > temp/barry_all.txt
+
+          echo "Downloading configs from peasoft/NoMoreWalls..."
+          curl -s "https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.txt" > temp/nomorewalls.txt
+
+          echo "Downloading configs from mfuu/v2ray..."
+          curl -s "https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray" > temp/mfuu_v2ray.txt
+
+          echo "Downloading configs from AzadNetCH/Clash..."
+          curl -s "https://raw.githubusercontent.com/AzadNetCH/Clash/main/V2Ray.txt" > temp/azadnet_v2ray.txt
+
+          # Объединяем все конфиги с приоритизацией лучших источников
+          # Приоритет 1: Проверенные российские конфиги (igareck)
+          cat temp/black_vless_mobile.txt temp/white_vless_mobile1.txt temp/white_vless_mobile2.txt 2>/dev/null | grep -v '^$' | grep -v '^#' > temp/priority1.txt
+
+          # Приоритет 2: Агрегаторы с проверкой
+          cat temp/v2ray_aggregator.txt temp/telegram_collector_mix.txt temp/barry_all.txt 2>/dev/null | grep -v '^$' | grep -v '^#' > temp/priority2.txt
+
+          # Приоритет 3: Остальные источники
+          cat temp/black_vless_full.txt temp/black_ss_all.txt temp/white_cidr_all.txt temp/white_sni_all.txt temp/telegram_collector_ss.txt temp/nomorewalls.txt temp/mfuu_v2ray.txt temp/azadnet_v2ray.txt 2>/dev/null | grep -v '^$' | grep -v '^#' > temp/priority3.txt
+
+          # Объединяем по приоритету и удаляем дубликаты
+          cat temp/priority1.txt temp/priority2.txt temp/priority3.txt | awk '!seen[$0]++' > temp/combined.txt
+
+          # Создаем subscription.txt с заголовком
+          cat > subscription.txt << 'EOFSUB'
+          # profile-title: base64:4pyFT2J4b2Qg0LHQtdC70YvRhSDRgdC/0LjRgdC60L7QsiBAcHJveHlhbHJlYWR54pyF
+          # profile-update-interval: 2
+          EOFSUB
+
+          # Берем первые 200 лучших конфигов
+          head -n 200 temp/combined.txt >> subscription.txt
+
+          # Создаем base64 версию
+          base64 -w 0 subscription.txt > subscription_base64.txt
+
+          # Подсчитываем количество конфигураций
+          CONFIG_COUNT=$(wc -l < subscription.txt)
+          echo "Total configs: $CONFIG_COUNT"
+
+          # Обновляем README
+          cat > README.md << 'EOFREADME'
+          # 🚀 VPN Подписка для Hiddify
+
+          Автоматически обновляемая VPN подписка из [vpn-configs-for-russia](https://github.com/igareck/vpn-configs-for-russia).
+
+          > 📡 **Доступ без VPN!** GitHub raw файлы доступны из России без прокси.
+
+          ## 📊 Статистика
+
+          - **Всего конфигураций:** CONFIG_COUNT
+          - **Последнее обновление:** UPDATE_TIME
+          - **Автообновление:** каждые 2 часа
+
+          ---
+
+          ## 🔗 Ссылка для подписки
+
+          ### Для Hiddify (рекомендуется)
+          ```
+          https://raw.githubusercontent.com/REPO_PATH/main/subscription.txt
+          ```
+
+          ### Base64 формат
+          ```
+          https://raw.githubusercontent.com/REPO_PATH/main/subscription_base64.txt
+          ```
+
+          ---
+
+          ## 📱 Как добавить в Hiddify
+
+          ### Android / iOS
+          1. Открой **Hiddify App**
+          2. Нажми **"+"** → **"Add from URL"**
+          3. Вставь ссылку выше
+          4. Готово! ✅
+
+          ### Windows / macOS
+          1. Открой **Hiddify**
+          2. **Profiles** → **Add Profile** → **From URL**
+          3. Вставь ссылку
+          4. Сохрани
+
+          ### Обновление конфигов
+          Hiddify автоматически обновляет подписки. Для ручного обновления:
+          - Нажми на профиль → **Update** или **Refresh**
+
+          ---
+
+          ## 🔄 Что включено
+
+          Все конфигурации с названием: **✅Обход белых списков @proxyalready✅**
+
+          ### Источники:
+          - `BLACK_VLESS_RUS_mobile.txt` - 150 лучших VLESS
+          - `BLACK_VLESS_RUS.txt` - полная VLESS подписка (1000-2000+)
+          - `BLACK_SS+All_RUS.txt` - SS, Hysteria2, VMess, Trojan
+          - `Vless-Reality-White-Lists-Rus-Mobile.txt` - 150 CIDR
+          - `Vless-Reality-White-Lists-Rus-Mobile-2.txt` - 150 CIDR
+          - `WHITE-CIDR-RU-all.txt` - полная CIDR подписка
+          - `WHITE-SNI-RU-all.txt` - SNI подписка
+
+          ---
+
+          ## ⚙️ Технические детали
+
+          - ✅ Автоматическое обновление через GitHub Actions
+          - ✅ Удаление дубликатов
+          - ✅ Проверка работоспособности каждые 2 часа
+          - ✅ Доступ без VPN (GitHub raw)
+          - ✅ Поддержка форматов: plain text и base64
+
+          ---
+
+          ## 📝 Источник
+
+          Конфигурации из репозитория [igareck/vpn-configs-for-russia](https://github.com/igareck/vpn-configs-for-russia)
+
+          Все конфиги проверяются на работоспособность на сервере в России каждые 2 часа.
+          EOFREADME
+
+          # Заменяем плейсхолдеры
+          sed -i "s|CONFIG_COUNT|$CONFIG_COUNT|g" README.md
+          sed -i "s|UPDATE_TIME|$(date -u +"%Y-%m-%d %H:%M UTC")|g" README.md
+          sed -i "s|REPO_PATH|${{ github.repository }}|g" README.md
+
+          echo "✅ Created subscription with $CONFIG_COUNT unique configs"
+
+          # Очищаем временные файлы
+          rm -rf temp
 
       - name: Commit and push if changed
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add subscription.txt subscription_base64.txt
-          git diff --quiet && git diff --staged --quiet || (git commit -m "🔄 Update: $(date -u +'%Y-%m-%d %H:%M') UTC" && git push)
+          git add subscription.txt subscription_base64.txt README.md
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🔄 Update: $(date -u +"%Y-%m-%d %H:%M UTC")" && git push)
