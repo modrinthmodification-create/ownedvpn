@@ -2,8 +2,8 @@ name: VPN Watchdog
 
 on:
   schedule:
-    # Каждые 5 минут
-    - cron: '*/5 * * * *'
+    # Каждую минуту (максимальная частота)
+    - cron: '* * * * *'
   workflow_dispatch: # Ручной запуск
 
 jobs:
