@@ -86,10 +86,24 @@ jobs:
 
               return True
 
+          def has_ip_in_name(config_line):
+              """Проверяет есть ли IP адрес в названии конфига (после #)"""
+              if '#' not in config_line:
+                  return False
+
+              name_part = config_line.split('#')[1]
+              # Ищем паттерн IP адреса в названии
+              ip_in_name_pattern = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+              return bool(re.search(ip_in_name_pattern, name_part))
+
           def is_anycast(server, config_line=''):
               """Проверяет является ли сервер anycast или IP"""
               # Проверка по названию конфига
               if 'anycast' in config_line.lower() or 'Anycast-IP' in config_line:
+                  return True
+
+              # Фильтруем конфиги с IP в названии
+              if has_ip_in_name(config_line):
                   return True
 
               # ЖЕСТКАЯ ФИЛЬТРАЦИЯ: только домены с буквами
