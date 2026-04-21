@@ -21,72 +21,155 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fetch and merge VPN configs
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fetch and filter VPN configs
         run: |
           echo "Fetching VPN configurations..."
-
-          # Создаем временную директорию
           mkdir -p temp
 
-          # Скачиваем все доступные конфигурации
-          echo "Downloading configs from igareck/vpn-configs-for-russia..."
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/black_vless_mobile.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" > temp/black_vless_full.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_SS%2BAll_RUS.txt" > temp/black_ss_all.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" > temp/white_vless_mobile1.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile-2.txt" > temp/white_vless_mobile2.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt" > temp/white_cidr_all.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-SNI-RU-all.txt" > temp/white_sni_all.txt
+          # Основной источник - vpn-configs-for-russia (НЕ ТРОГАЕМ)
+          echo "Downloading from vpn-configs-for-russia..."
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/russia_mobile.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" > temp/russia_desktop.txt
 
-          echo "Downloading configs from mahdibland/V2RayAggregator..."
-          curl -s "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt" > temp/v2ray_aggregator.txt
+          # Дополнительные источники для разнообразия
+          echo "Downloading from additional sources..."
+          curl -s "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt" > temp/v2ray_agg.txt
+          curl -s "https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/mix" > temp/telegram_mix.txt
+          curl -s "https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/All_Configs_Sub.txt" > temp/barry.txt
 
-          echo "Downloading configs from yebekhe/TelegramV2rayCollector..."
-          curl -s "https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/mix" > temp/telegram_collector_mix.txt
-          curl -s "https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/shadowsocks" > temp/telegram_collector_ss.txt
+          # Python скрипт для фильтрации
+          cat > filter_configs.py << 'EOFPYTHON'
+          import re
+          import base64
+          from urllib.parse import urlparse, parse_qs
 
-          echo "Downloading configs from barry-far/V2ray-Configs..."
-          curl -s "https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/All_Configs_Sub.txt" > temp/barry_all.txt
+          def extract_server(config):
+              """Извлекает IP/домен из конфига"""
+              try:
+                  if config.startswith('vless://') or config.startswith('vmess://'):
+                      if config.startswith('vmess://'):
+                          decoded = base64.b64decode(config[8:]).decode('utf-8')
+                          import json
+                          data = json.loads(decoded)
+                          return data.get('add', '')
+                      else:
+                          match = re.search(r'@([^:]+):', config)
+                          return match.group(1) if match else ''
+                  elif config.startswith('ss://'):
+                      match = re.search(r'@([^:]+):', config)
+                      return match.group(1) if match else ''
+                  elif config.startswith('trojan://'):
+                      match = re.search(r'@([^:]+):', config)
+                      return match.group(1) if match else ''
+              except:
+                  pass
+              return ''
 
-          echo "Downloading configs from peasoft/NoMoreWalls..."
-          curl -s "https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.txt" > temp/nomorewalls.txt
+          def is_anycast(server):
+              """Проверяет является ли сервер anycast (обычно не пингуется)"""
+              anycast_patterns = [
+                  r'\.cloudflare\.', r'\.fastly\.', r'\.akamai\.',
+                  r'anycast', r'cdn\.', r'edge\.',
+                  r'^172\.', r'^10\.', r'^192\.168\.'  # Приватные IP
+              ]
+              for pattern in anycast_patterns:
+                  if re.search(pattern, server, re.IGNORECASE):
+                      return True
+              return False
 
-          echo "Downloading configs from mfuu/v2ray..."
-          curl -s "https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray" > temp/mfuu_v2ray.txt
+          def filter_configs(input_file, output_file, max_count):
+              """Фильтрует конфиги, убирает anycast"""
+              configs = []
+              seen_servers = set()
 
-          echo "Downloading configs from AzadNetCH/Clash..."
-          curl -s "https://raw.githubusercontent.com/AzadNetCH/Clash/main/V2Ray.txt" > temp/azadnet_v2ray.txt
+              with open(input_file, 'r', encoding='utf-8', errors='ignore') as f:
+                  for line in f:
+                      line = line.strip()
+                      if not line or line.startswith('#'):
+                          continue
 
-          # Объединяем все конфиги с приоритизацией лучших источников
-          # Приоритет 1: Проверенные российские конфиги (igareck)
-          cat temp/black_vless_mobile.txt temp/white_vless_mobile1.txt temp/white_vless_mobile2.txt 2>/dev/null | grep -v '^$' | grep -v '^#' > temp/priority1.txt
+                      server = extract_server(line)
+                      if not server or is_anycast(server):
+                          continue
 
-          # Приоритет 2: Агрегаторы с проверкой
-          cat temp/v2ray_aggregator.txt temp/telegram_collector_mix.txt temp/barry_all.txt 2>/dev/null | grep -v '^$' | grep -v '^#' > temp/priority2.txt
+                      # Убираем дубликаты по серверу
+                      if server in seen_servers:
+                          continue
 
-          # Приоритет 3: Остальные источники
-          cat temp/black_vless_full.txt temp/black_ss_all.txt temp/white_cidr_all.txt temp/white_sni_all.txt temp/telegram_collector_ss.txt temp/nomorewalls.txt temp/mfuu_v2ray.txt temp/azadnet_v2ray.txt 2>/dev/null | grep -v '^$' | grep -v '^#' > temp/priority3.txt
+                      seen_servers.add(server)
+                      configs.append(line)
 
-          # Объединяем по приоритету и удаляем дубликаты
-          cat temp/priority1.txt temp/priority2.txt temp/priority3.txt | awk '!seen[$0]++' > temp/combined.txt
+                      if len(configs) >= max_count:
+                          break
 
-          # Создаем subscription.txt с заголовком
+              with open(output_file, 'w', encoding='utf-8') as f:
+                  for config in configs:
+                      f.write(config + '\n')
+
+              return len(configs)
+
+          # Обработка мобильных конфигов
+          print("Filtering mobile configs...")
+          mobile_files = ['temp/russia_mobile.txt', 'temp/telegram_mix.txt']
+          all_mobile = []
+          for f in mobile_files:
+              try:
+                  with open(f, 'r', encoding='utf-8', errors='ignore') as file:
+                      all_mobile.extend([l.strip() for l in file if l.strip() and not l.startswith('#')])
+              except:
+                  pass
+
+          with open('temp/all_mobile.txt', 'w', encoding='utf-8') as f:
+              for line in all_mobile:
+                  f.write(line + '\n')
+
+          mobile_count = filter_configs('temp/all_mobile.txt', 'temp/mobile_filtered.txt', 100)
+          print(f"✅ Mobile configs: {mobile_count}")
+
+          # Обработка десктоп конфигов
+          print("Filtering desktop configs...")
+          desktop_files = ['temp/russia_desktop.txt', 'temp/v2ray_agg.txt', 'temp/barry.txt']
+          all_desktop = []
+          for f in desktop_files:
+              try:
+                  with open(f, 'r', encoding='utf-8', errors='ignore') as file:
+                      all_desktop.extend([l.strip() for l in file if l.strip() and not l.startswith('#')])
+              except:
+                  pass
+
+          with open('temp/all_desktop.txt', 'w', encoding='utf-8') as f:
+              for line in all_desktop:
+                  f.write(line + '\n')
+
+          desktop_count = filter_configs('temp/all_desktop.txt', 'temp/desktop_filtered.txt', 100)
+          print(f"✅ Desktop configs: {desktop_count}")
+          EOFPYTHON
+
+          python3 filter_configs.py
+
+          # Создаем финальные файлы
           cat > subscription.txt << 'EOFSUB'
-          # profile-title: base64:4pyFT2J4b2Qg0LHQtdC70YvRhSDRgdC/0LjRgdC60L7QsiBAcHJveHlhbHJlYWR54pyF
-          # profile-update-interval: 2
+          # profile-title: base64:8J+agiBRdWFsaXR5IFZQTiDigKIgUEMgKyBNb2JpbGU=
+          # profile-update-interval: 1
           EOFSUB
 
-          # Берем первые 200 лучших конфигов
-          head -n 200 temp/combined.txt >> subscription.txt
+          echo "# === DESKTOP (100) ===" >> subscription.txt
+          cat temp/desktop_filtered.txt >> subscription.txt
+          echo "" >> subscription.txt
+          echo "# === MOBILE (100) ===" >> subscription.txt
+          cat temp/mobile_filtered.txt >> subscription.txt
 
-          # Создаем base64 версию
+          # Base64 версия
           base64 -w 0 subscription.txt > subscription_base64.txt
 
-          # Подсчитываем количество конфигураций
-          CONFIG_COUNT=$(wc -l < subscription.txt)
-          echo "✅ Created subscription with $CONFIG_COUNT unique configs"
+          TOTAL=$(cat temp/desktop_filtered.txt temp/mobile_filtered.txt | wc -l)
+          echo "✅ Total configs: $TOTAL (Desktop + Mobile, no anycast)"
 
-          # Очищаем временные файлы
           rm -rf temp
 
       - name: Commit and push if changed
