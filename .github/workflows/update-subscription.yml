@@ -70,12 +70,17 @@ jobs:
                   pass
               return ''
 
-          def is_anycast(server):
-              """Проверяет является ли сервер anycast (обычно не пингуется)"""
+          def is_anycast(server, config_line=''):
+              """Проверяет является ли сервер anycast"""
+              # Проверка по названию конфига
+              if 'anycast' in config_line.lower() or 'Anycast-IP' in config_line:
+                  return True
+
               anycast_patterns = [
                   r'\.cloudflare\.', r'\.fastly\.', r'\.akamai\.',
-                  r'anycast', r'cdn\.', r'edge\.',
-                  r'^172\.', r'^10\.', r'^192\.168\.'  # Приватные IP
+                  r'anycast', r'cdn\.', r'edge\.', r'\.cf',
+                  r'^172\.', r'^10\.', r'^192\.168\.',  # Приватные IP
+                  r'mesa\.ip-ddns', r'chinav\.indevs', r'\.ndjp\.net'  # Известные anycast домены
               ]
               for pattern in anycast_patterns:
                   if re.search(pattern, server, re.IGNORECASE):
@@ -94,7 +99,7 @@ jobs:
                           continue
 
                       server = extract_server(line)
-                      if not server or is_anycast(server):
+                      if not server or is_anycast(server, line):
                           continue
 
                       # Убираем дубликаты по серверу
