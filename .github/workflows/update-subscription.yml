@@ -70,10 +70,21 @@ jobs:
                   pass
               return ''
 
-          def is_ip_address(server):
-              """Проверяет является ли строка IP адресом"""
-              ip_pattern = r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
-              return bool(re.match(ip_pattern, server))
+          def is_valid_domain(server):
+              """Проверяет что это нормальный домен, а не IP"""
+              # Если есть только цифры и точки - это IP
+              if re.match(r'^[\d\.]+$', server):
+                  return False
+
+              # Должна быть хотя бы одна буква
+              if not re.search(r'[a-zA-Z]', server):
+                  return False
+
+              # Должна быть точка (домен)
+              if '.' not in server:
+                  return False
+
+              return True
 
           def is_anycast(server, config_line=''):
               """Проверяет является ли сервер anycast или IP"""
@@ -81,14 +92,14 @@ jobs:
               if 'anycast' in config_line.lower() or 'Anycast-IP' in config_line:
                   return True
 
-              # Фильтруем чистые IP адреса (они нестабильны)
-              if is_ip_address(server):
+              # ЖЕСТКАЯ ФИЛЬТРАЦИЯ: только домены с буквами
+              if not is_valid_domain(server):
                   return True
 
               anycast_patterns = [
                   r'\.cloudflare\.', r'\.fastly\.', r'\.akamai\.',
                   r'anycast', r'cdn\.', r'edge\.', r'\.cf',
-                  r'^172\.', r'^10\.', r'^192\.168\.',  # Приватные IP
+                  r'^172\.', r'^10\.', r'^192\.168\.',
                   r'mesa\.ip-ddns', r'chinav\.indevs', r'\.ndjp\.net'
               ]
               for pattern in anycast_patterns:
