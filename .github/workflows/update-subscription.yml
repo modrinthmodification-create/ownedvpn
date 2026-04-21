@@ -31,16 +31,18 @@ jobs:
           echo "Fetching VPN configurations..."
           mkdir -p temp
 
-          # Основной источник - vpn-configs-for-russia (НЕ ТРОГАЕМ)
+          # Основной источник - vpn-configs-for-russia (ОСТАВЛЯЕМ)
           echo "Downloading from vpn-configs-for-russia..."
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/russia_mobile.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" > temp/russia_desktop.txt
+          curl -s "https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/sub/sub_merge_base64.txt" | base64 -d > temp/mahdibland_ss.txt
+          curl -s "https://raw.githubusercontent.com/Leon406/SubCrawler/main/sub/share/all" > temp/subcrawler.txt
+          curl -s "https://raw.githubusercontent.com/aiboboxx/v2rayfree/main/v2" > temp/aibobo.txt
+          curl -s "https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub" > temp/pawdroid.txt
+          curl -s "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt" > temp/ermaozi.txt
 
-          # Дополнительные источники для разнообразия
+          # Дополнительные качественные источники
           echo "Downloading from additional sources..."
-          curl -s "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt" > temp/v2ray_agg.txt
-          curl -s "https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/mix" > temp/telegram_mix.txt
-          curl -s "https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/All_Configs_Sub.txt" > temp/barry.txt
+          curl -s "https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray" > temp/mfuu.txt
+          curl -s "https://raw.githubusercontent.com/ts-sf/fly/main/v2" > temp/tsfly.txt
 
           # Python скрипт для фильтрации
           cat > filter_configs.py << 'EOFPYTHON'
@@ -154,7 +156,7 @@ jobs:
 
           # Обработка мобильных конфигов
           print("Filtering mobile configs...")
-          mobile_files = ['temp/russia_mobile.txt', 'temp/telegram_mix.txt']
+          mobile_files = ['temp/mahdibland_ss.txt', 'temp/subcrawler.txt', 'temp/aibobo.txt']
           all_mobile = []
           for f in mobile_files:
               try:
@@ -172,7 +174,7 @@ jobs:
 
           # Обработка десктоп конфигов
           print("Filtering desktop configs...")
-          desktop_files = ['temp/russia_desktop.txt', 'temp/v2ray_agg.txt', 'temp/barry.txt']
+          desktop_files = ['temp/pawdroid.txt', 'temp/ermaozi.txt', 'temp/mfuu.txt', 'temp/tsfly.txt']
           all_desktop = []
           for f in desktop_files:
               try:
