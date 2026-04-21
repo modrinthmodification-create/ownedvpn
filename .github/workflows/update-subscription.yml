@@ -125,9 +125,11 @@ jobs:
                       return True
               return False
 
-          def filter_configs(input_file, output_file, max_count):
+          def filter_configs(input_file, output_file, max_count, prioritize_russia=False):
               """Фильтрует конфиги, убирает anycast"""
               configs = []
+              russia_configs = []
+              other_configs = []
               seen_servers = set()
 
               with open(input_file, 'r', encoding='utf-8', errors='ignore') as f:
@@ -145,10 +147,18 @@ jobs:
                           continue
 
                       seen_servers.add(server)
-                      configs.append(line)
 
-                      if len(configs) >= max_count:
-                          break
+                      # Если приоритет России - разделяем
+                      if prioritize_russia and 'russia' in line.lower():
+                          russia_configs.append(line)
+                      else:
+                          other_configs.append(line)
+
+              # Сначала российские, потом остальные
+              if prioritize_russia:
+                  configs = russia_configs[:max_count] + other_configs[:max(0, max_count - len(russia_configs))]
+              else:
+                  configs = (russia_configs + other_configs)[:max_count]
 
               with open(output_file, 'w', encoding='utf-8') as f:
                   for config in configs:
@@ -156,23 +166,36 @@ jobs:
 
               return len(configs)
 
-          # Обработка мобильных конфигов
+          # Обработка мобильных конфигов - ПРИОРИТЕТ vpn-configs-for-russia
           print("Filtering mobile configs...")
-          mobile_files = ['temp/russia_mobile.txt', 'temp/mahdibland_ss.txt', 'temp/subcrawler.txt', 'temp/aibobo.txt']
-          all_mobile = []
+
+          # Сначала берем ВСЕ из russia_mobile (до 150)
+          russia_mobile_configs = []
+          try:
+              with open('temp/russia_mobile.txt', 'r', encoding='utf-8', errors='ignore') as f:
+                  russia_mobile_configs = [l.strip() for l in f if l.strip() and not l.startswith('#')]
+          except:
+              pass
+
+          # Потом добавляем из других источников
+          mobile_files = ['temp/mahdibland_ss.txt', 'temp/subcrawler.txt', 'temp/aibobo.txt']
+          other_mobile = []
           for f in mobile_files:
               try:
                   with open(f, 'r', encoding='utf-8', errors='ignore') as file:
-                      all_mobile.extend([l.strip() for l in file if l.strip() and not l.startswith('#')])
+                      other_mobile.extend([l.strip() for l in file if l.strip() and not l.startswith('#')])
               except:
                   pass
+
+          # Объединяем: сначала russia, потом остальные
+          all_mobile = russia_mobile_configs[:150] + other_mobile
 
           with open('temp/all_mobile.txt', 'w', encoding='utf-8') as f:
               for line in all_mobile:
                   f.write(line + '\n')
 
-          mobile_count = filter_configs('temp/all_mobile.txt', 'temp/mobile_filtered.txt', 100)
-          print(f"✅ Mobile configs: {mobile_count}")
+          mobile_count = filter_configs('temp/all_mobile.txt', 'temp/mobile_filtered.txt', 100, prioritize_russia=False)
+          print(f"✅ Mobile configs: {mobile_count} (Russia priority)")
 
           # Обработка десктоп конфигов
           print("Filtering desktop configs...")
