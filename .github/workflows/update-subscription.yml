@@ -31,27 +31,16 @@ jobs:
           echo "Fetching VPN configurations..."
           mkdir -p temp
 
-          # ОСНОВНОЙ ИСТОЧНИК - vpn-configs-for-russia ОБХОД БЕЛЫХ СПИСКОВ (ПРИОРИТЕТ!!!)
-          echo "Downloading WHITELIST BYPASS configs from vpn-configs-for-russia..."
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" > temp/white_mobile_1.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile-2.txt" > temp/white_mobile_2.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt" > temp/white_cidr.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-SNI-RU-all.txt" > temp/white_sni.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-checked.txt" > temp/white_cidr_checked.txt
-
-          # Дополнительно BLACK списки (если не хватит)
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/russia_mobile.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" > temp/russia_desktop.txt
-
-          # Дополнительные качественные источники
-          echo "Downloading from additional sources..."
-          curl -s "https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/sub/sub_merge_base64.txt" | base64 -d > temp/mahdibland_ss.txt
-          curl -s "https://raw.githubusercontent.com/Leon406/SubCrawler/main/sub/share/all" > temp/subcrawler.txt
-          curl -s "https://raw.githubusercontent.com/aiboboxx/v2rayfree/main/v2" > temp/aibobo.txt
-          curl -s "https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub" > temp/pawdroid.txt
-          curl -s "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt" > temp/ermaozi.txt
-          curl -s "https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray" > temp/mfuu.txt
-          curl -s "https://raw.githubusercontent.com/ts-sf/fly/main/v2" > temp/tsfly.txt
+          # ВСЕ КОНФИГИ ИЗ vpn-configs-for-russia
+          echo "Downloading ALL configs from vpn-configs-for-russia..."
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_SS+All_RUS.txt" > temp/russia_1.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" > temp/russia_2.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/russia_3.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" > temp/russia_4.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile-2.txt" > temp/russia_5.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt" > temp/russia_6.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-checked.txt" > temp/russia_7.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-SNI-RU-all.txt" > temp/russia_8.txt
 
           # Python скрипт для фильтрации
           cat > filter_configs.py << 'EOFPYTHON'
@@ -173,67 +162,37 @@ jobs:
 
               return len(configs)
 
-          # Обработка мобильных конфигов - ПРИОРИТЕТ WHITELIST BYPASS
-          print("Filtering mobile configs...")
+          # Объединяем ВСЕ конфиги из vpn-configs-for-russia
+          print("Merging ALL configs from vpn-configs-for-russia...")
 
-          # ПРИОРИТЕТ: ВСЕ конфиги из WHITELIST BYPASS источников
-          whitelist_mobile = []
-          whitelist_files = ['temp/white_mobile_1.txt', 'temp/white_mobile_2.txt', 'temp/white_cidr.txt', 'temp/white_sni.txt', 'temp/white_cidr_checked.txt']
-          for f in whitelist_files:
+          all_configs = []
+          russia_files = ['temp/russia_1.txt', 'temp/russia_2.txt', 'temp/russia_3.txt', 'temp/russia_4.txt', 'temp/russia_5.txt', 'temp/russia_6.txt', 'temp/russia_7.txt', 'temp/russia_8.txt']
+
+          for f in russia_files:
               try:
                   with open(f, 'r', encoding='utf-8', errors='ignore') as file:
-                      whitelist_mobile.extend([l.strip() for l in file if l.strip() and not l.startswith('#')])
+                      all_configs.extend([l.strip() for l in file if l.strip() and not l.startswith('#')])
               except:
                   pass
 
-          # Дополнительно BLACK списки если не хватит
-          russia_mobile_configs = []
-          try:
-              with open('temp/russia_mobile.txt', 'r', encoding='utf-8', errors='ignore') as f:
-                  russia_mobile_configs = [l.strip() for l in f if l.strip() and not l.startswith('#')]
-          except:
-              pass
-
-          # Потом добавляем из других источников
-          mobile_files = ['temp/mahdibland_ss.txt', 'temp/subcrawler.txt', 'temp/aibobo.txt']
-          other_mobile = []
-          for f in mobile_files:
-              try:
-                  with open(f, 'r', encoding='utf-8', errors='ignore') as file:
-                      other_mobile.extend([l.strip() for l in file if l.strip() and not l.startswith('#')])
-              except:
-                  pass
-
-          # Объединяем: WHITELIST сначала, потом BLACK, потом остальные
-          all_mobile = whitelist_mobile + russia_mobile_configs + other_mobile
-
-          with open('temp/all_mobile.txt', 'w', encoding='utf-8') as f:
-              for line in all_mobile:
+          with open('temp/all_configs.txt', 'w', encoding='utf-8') as f:
+              for line in all_configs:
                   f.write(line + '\n')
 
-          mobile_count = filter_configs('temp/all_mobile.txt', 'temp/mobile_filtered.txt', 100, prioritize_russia=False)
-          print(f"✅ Mobile configs: {mobile_count} (WHITELIST BYPASS priority)")
+          # Фильтруем только дубликаты, оставляем все остальное
+          seen = set()
+          unique_configs = []
+          for config in all_configs:
+              server = extract_server(config)
+              if server and server not in seen:
+                  seen.add(server)
+                  unique_configs.append(config)
 
-          # Обработка десктоп конфигов - тоже WHITELIST BYPASS
-          print("Filtering desktop configs...")
-          desktop_files = ['temp/white_cidr.txt', 'temp/white_sni.txt', 'temp/white_cidr_checked.txt', 'temp/russia_desktop.txt', 'temp/pawdroid.txt', 'temp/ermaozi.txt', 'temp/mfuu.txt', 'temp/tsfly.txt']
-          all_desktop = []
-          for f in desktop_files:
-              try:
-                  with open(f, 'r', encoding='utf-8', errors='ignore') as file:
-                      all_desktop.extend([l.strip() for l in file if l.strip() and not l.startswith('#')])
-              except:
-                  pass
+          with open('temp/filtered.txt', 'w', encoding='utf-8') as f:
+              for config in unique_configs:
+                  f.write(config + '\n')
 
-          with open('temp/all_desktop.txt', 'w', encoding='utf-8') as f:
-              for line in all_desktop:
-                  f.write(line + '\n')
-
-          desktop_count = filter_configs('temp/all_desktop.txt', 'temp/desktop_filtered.txt', 100)
-          print(f"✅ Desktop configs: {desktop_count}")
-          EOFPYTHON
-
-          python3 filter_configs.py
+          print(f"✅ Total configs: {len(unique_configs)} (all from vpn-configs-for-russia)")
 
           # Создаем финальные файлы
           cat > subscription.txt << 'EOFSUB'
@@ -241,17 +200,16 @@ jobs:
           # profile-update-interval: 1
           EOFSUB
 
-          echo "# === DESKTOP (100) ===" >> subscription.txt
-          cat temp/desktop_filtered.txt >> subscription.txt
-          echo "" >> subscription.txt
-          echo "# === MOBILE (100) ===" >> subscription.txt
-          cat temp/mobile_filtered.txt >> subscription.txt
+          cat temp/filtered.txt >> subscription.txt
+
+          EOFPYTHON
+
+          python3 filter_configs.py
 
           # Base64 версия
           base64 -w 0 subscription.txt > subscription_base64.txt
 
-          TOTAL=$(cat temp/desktop_filtered.txt temp/mobile_filtered.txt | wc -l)
-          echo "✅ Total configs: $TOTAL (Desktop + Mobile, no anycast)"
+          echo "✅ All configs merged from vpn-configs-for-russia"
 
           rm -rf temp
 
