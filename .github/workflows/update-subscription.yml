@@ -31,8 +31,15 @@ jobs:
           echo "Fetching VPN configurations..."
           mkdir -p temp
 
-          # ОСНОВНОЙ ИСТОЧНИК - vpn-configs-for-russia (НИКОГДА НЕ ТРОГАТЬ!!!)
-          echo "Downloading from vpn-configs-for-russia..."
+          # ОСНОВНОЙ ИСТОЧНИК - vpn-configs-for-russia ОБХОД БЕЛЫХ СПИСКОВ (ПРИОРИТЕТ!!!)
+          echo "Downloading WHITELIST BYPASS configs from vpn-configs-for-russia..."
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile.txt" > temp/white_mobile_1.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/Vless-Reality-White-Lists-Rus-Mobile-2.txt" > temp/white_mobile_2.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-all.txt" > temp/white_cidr.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-SNI-RU-all.txt" > temp/white_sni.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/WHITE-CIDR-RU-checked.txt" > temp/white_cidr_checked.txt
+
+          # Дополнительно BLACK списки (если не хватит)
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS_mobile.txt" > temp/russia_mobile.txt
           curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/main/BLACK_VLESS_RUS.txt" > temp/russia_desktop.txt
 
@@ -166,10 +173,20 @@ jobs:
 
               return len(configs)
 
-          # Обработка мобильных конфигов - ПРИОРИТЕТ vpn-configs-for-russia
+          # Обработка мобильных конфигов - ПРИОРИТЕТ WHITELIST BYPASS
           print("Filtering mobile configs...")
 
-          # Сначала берем ВСЕ из russia_mobile (до 150)
+          # ПРИОРИТЕТ: ВСЕ конфиги из WHITELIST BYPASS источников
+          whitelist_mobile = []
+          whitelist_files = ['temp/white_mobile_1.txt', 'temp/white_mobile_2.txt', 'temp/white_cidr.txt', 'temp/white_sni.txt', 'temp/white_cidr_checked.txt']
+          for f in whitelist_files:
+              try:
+                  with open(f, 'r', encoding='utf-8', errors='ignore') as file:
+                      whitelist_mobile.extend([l.strip() for l in file if l.strip() and not l.startswith('#')])
+              except:
+                  pass
+
+          # Дополнительно BLACK списки если не хватит
           russia_mobile_configs = []
           try:
               with open('temp/russia_mobile.txt', 'r', encoding='utf-8', errors='ignore') as f:
@@ -187,19 +204,19 @@ jobs:
               except:
                   pass
 
-          # Объединяем: сначала russia, потом остальные
-          all_mobile = russia_mobile_configs[:150] + other_mobile
+          # Объединяем: WHITELIST сначала, потом BLACK, потом остальные
+          all_mobile = whitelist_mobile + russia_mobile_configs + other_mobile
 
           with open('temp/all_mobile.txt', 'w', encoding='utf-8') as f:
               for line in all_mobile:
                   f.write(line + '\n')
 
           mobile_count = filter_configs('temp/all_mobile.txt', 'temp/mobile_filtered.txt', 100, prioritize_russia=False)
-          print(f"✅ Mobile configs: {mobile_count} (Russia priority)")
+          print(f"✅ Mobile configs: {mobile_count} (WHITELIST BYPASS priority)")
 
-          # Обработка десктоп конфигов
+          # Обработка десктоп конфигов - тоже WHITELIST BYPASS
           print("Filtering desktop configs...")
-          desktop_files = ['temp/russia_desktop.txt', 'temp/pawdroid.txt', 'temp/ermaozi.txt', 'temp/mfuu.txt', 'temp/tsfly.txt']
+          desktop_files = ['temp/white_cidr.txt', 'temp/white_sni.txt', 'temp/white_cidr_checked.txt', 'temp/russia_desktop.txt', 'temp/pawdroid.txt', 'temp/ermaozi.txt', 'temp/mfuu.txt', 'temp/tsfly.txt']
           all_desktop = []
           for f in desktop_files:
               try:
