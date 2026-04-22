@@ -193,6 +193,9 @@ jobs:
                   f.write(config + '\n')
 
           print(f"✅ Total configs: {len(unique_configs)} (all from vpn-configs-for-russia)")
+          EOFPYTHON
+
+          python3 filter_configs.py
 
           # Создаем финальные файлы
           cat > subscription.txt << 'EOFSUB'
@@ -201,10 +204,6 @@ jobs:
           EOFSUB
 
           cat temp/filtered.txt >> subscription.txt
-
-          EOFPYTHON
-
-          python3 filter_configs.py
 
           # Base64 версия
           base64 -w 0 subscription.txt > subscription_base64.txt
